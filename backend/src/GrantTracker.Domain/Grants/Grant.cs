@@ -1,3 +1,5 @@
+using System.Globalization;
+using GrantTracker.Domain.Common;
 using GrantTracker.Domain.Tasks;
 
 namespace GrantTracker.Domain.Grants;
@@ -49,4 +51,70 @@ public sealed class Grant
     public IReadOnlyCollection<GrantTask> Tasks => _tasks.AsReadOnly();
 
     public int PendingTaskCount => _tasks.Count(t => !t.IsCompleted);
+
+    /// <summary>
+    /// Adds a task. Enforces BR-1 (grant must be open), BR-2 (due date not in
+    /// the past and not before the application date) and BR-3 (trimmed title,
+    /// 1–100 characters).
+    /// </summary>
+    /// <exception cref="DomainException">
+    /// <see cref="ErrorCodes.GrantClosed"/> conflict, or a validation error per field.
+    /// </exception>
+    public GrantTask AddTask(string? title, DateOnly dueDate, TaskPriority priority, DateOnly today)
+    {
+        if (Status == GrantStatus.Closed)
+        {
+            throw DomainException.Conflict(
+                ErrorCodes.GrantClosed,
+                $"Grant {ReferenceNumber} is closed, so tasks cannot be added to it.");
+        }
+
+        var errors = new Dictionary<string, string[]>();
+
+        var trimmedTitle = title?.Trim() ?? string.Empty;
+        if (trimmedTitle.Length == 0)
+        {
+            errors[nameof(GrantTask.Title)] = ["Title is required."];
+        }
+        else if (trimmedTitle.Length > GrantTask.TitleMaxLength)
+        {
+            errors[nameof(GrantTask.Title)] =
+                [$"Title must be {GrantTask.TitleMaxLength} characters or fewer."];
+        }
+
+        var dueDateErrors = new List<string>();
+        if (dueDate < today)
+        {
+            dueDateErrors.Add("Due date cannot be in the past.");
+        }
+
+        if (dueDate < ApplicationDate)
+        {
+            dueDateErrors.Add(
+                "Due date cannot be before the grant's application date ("
+                + ApplicationDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + ").");
+        }
+
+        if (dueDateErrors.Count > 0)
+        {
+            errors[nameof(GrantTask.DueDate)] = [.. dueDateErrors];
+        }
+
+        if (!Enum.IsDefined(priority))
+        {
+            errors[nameof(GrantTask.Priority)] = ["Priority must be Low, Medium or High."];
+        }
+
+        if (errors.Count > 0)
+        {
+            throw DomainException.Validation(errors);
+        }
+
+        var task = new GrantTask(this, trimmedTitle, dueDate, priority);
+        _tasks.Add(task);
+        Touch();
+        return task;
+    }
+
+    private void Touch() => Version = Guid.NewGuid();
 }
