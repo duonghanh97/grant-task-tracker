@@ -24,4 +24,29 @@ public sealed class TaskService(AppDbContext db, BusinessClock clock)
         await db.SaveChangesAsync(cancellationToken);
         return TaskDto.From(task, today);
     }
+
+    /// <summary>
+    /// Completes a task (BR-4). Repeating the request returns the task with its
+    /// original completion date.
+    /// </summary>
+    /// <returns>The task, or <c>null</c> if it does not exist.</returns>
+    public async Task<TaskDto?> CompleteAsync(int taskId, CancellationToken cancellationToken)
+    {
+        // Loading the grant puts the task in grant.Tasks, so the change goes through Grant.
+        var task = await db.Tasks
+            .Include(t => t.Grant)
+            .SingleOrDefaultAsync(t => t.Id == taskId, cancellationToken);
+        if (task is null)
+        {
+            return null;
+        }
+
+        var today = clock.Today;
+        if (task.Grant.CompleteTask(task, today))
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        return TaskDto.From(task, today);
+    }
 }

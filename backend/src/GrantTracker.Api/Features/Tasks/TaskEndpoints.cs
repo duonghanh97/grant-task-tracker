@@ -17,6 +17,11 @@ public static class TaskEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
+        api.MapPut("/tasks/{id:int}/complete", CompleteTask)
+            .WithTags("Tasks")
+            .WithSummary("Mark a task as completed. Safe to repeat: the original completion date is kept.")
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
         return api;
     }
 
@@ -27,5 +32,12 @@ public static class TaskEndpoints
         return task is null
             ? ApiProblem.GrantNotFound(grantId)
             : TypedResults.Created((string?)null, task);
+    }
+
+    private static async Task<Results<Ok<TaskDto>, ProblemHttpResult>> CompleteTask(
+        int id, TaskService service, CancellationToken cancellationToken)
+    {
+        var task = await service.CompleteAsync(id, cancellationToken);
+        return task is null ? ApiProblem.TaskNotFound(id) : TypedResults.Ok(task);
     }
 }
