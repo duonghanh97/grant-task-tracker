@@ -30,8 +30,28 @@ public sealed class TaskService(AppDbContext db, BusinessClock clock)
     /// Completes a task (BR-4). Repeating the request returns the task with its
     /// original completion date.
     /// </summary>
+    /// <remarks>
+    /// If the grant changed between this request's read and write (for example,
+    /// the same completion was sent twice at once), the save fails on the
+    /// grant's Version. Completion is idempotent, so the service reloads and
+    /// tries once more: if the task is now completed, that attempt changes
+    /// nothing and returns 200 (G1). A second conflict returns 409.
+    /// </remarks>
     /// <returns>The task, or <c>null</c> if it does not exist.</returns>
     public async Task<TaskDto?> CompleteAsync(int taskId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await TryCompleteAsync(taskId, cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            db.ChangeTracker.Clear();
+            return await TryCompleteAsync(taskId, cancellationToken);
+        }
+    }
+
+    private async Task<TaskDto?> TryCompleteAsync(int taskId, CancellationToken cancellationToken)
     {
         // Loading the grant puts the task in grant.Tasks, so the change goes through Grant.
         var task = await db.Tasks
