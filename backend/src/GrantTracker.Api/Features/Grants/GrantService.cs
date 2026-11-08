@@ -35,4 +35,27 @@ public sealed class GrantService(AppDbContext db, BusinessClock clock)
 
         return grant is null ? null : GrantDetailDto.From(grant, clock.Today);
     }
+
+    /// <summary>
+    /// Closes a grant (BR-5). Closing an already-closed grant returns it unchanged.
+    /// </summary>
+    /// <returns>The grant, or <c>null</c> if it does not exist.</returns>
+    public async Task<GrantDetailDto?> CloseAsync(int id, CancellationToken cancellationToken)
+    {
+        // BR-5 is checked against every task, so all of them must be loaded.
+        var grant = await db.Grants
+            .Include(g => g.Tasks)
+            .SingleOrDefaultAsync(g => g.Id == id, cancellationToken);
+        if (grant is null)
+        {
+            return null;
+        }
+
+        if (grant.Close())
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        return GrantDetailDto.From(grant, clock.Today);
+    }
 }

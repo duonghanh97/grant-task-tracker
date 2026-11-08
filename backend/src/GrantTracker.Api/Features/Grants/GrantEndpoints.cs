@@ -17,6 +17,10 @@ public static class GrantEndpoints
         grants.MapGet("/{id:int}", GetGrant)
             .WithSummary("Get a grant with its tasks.");
 
+        grants.MapPut("/{id:int}/close", CloseGrant)
+            .WithSummary("Close a grant. Fails while it has a pending High-priority task. Safe to repeat.")
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
         return api;
     }
 
@@ -44,6 +48,13 @@ public static class GrantEndpoints
         int id, GrantService service, CancellationToken cancellationToken)
     {
         var grant = await service.GetAsync(id, cancellationToken);
+        return grant is null ? ApiProblem.GrantNotFound(id) : TypedResults.Ok(grant);
+    }
+
+    private static async Task<Results<Ok<GrantDetailDto>, ProblemHttpResult>> CloseGrant(
+        int id, GrantService service, CancellationToken cancellationToken)
+    {
+        var grant = await service.CloseAsync(id, cancellationToken);
         return grant is null ? ApiProblem.GrantNotFound(id) : TypedResults.Ok(grant);
     }
 
