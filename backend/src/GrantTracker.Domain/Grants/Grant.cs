@@ -138,5 +138,34 @@ public sealed class Grant
         return true;
     }
 
+    /// <summary>
+    /// Closes the grant (BR-5). Closing an already-closed grant changes nothing.
+    /// The caller must load all of the grant's tasks first.
+    /// </summary>
+    /// <returns><c>true</c> if the grant changed; <c>false</c> if it was already closed.</returns>
+    /// <exception cref="DomainException">
+    /// <see cref="ErrorCodes.GrantHasPendingHighPriorityTasks"/> if a High-priority task is pending.
+    /// </exception>
+    public bool Close()
+    {
+        if (Status == GrantStatus.Closed)
+        {
+            return false;
+        }
+
+        var pendingHigh = _tasks.Count(t => t.Priority == TaskPriority.High && !t.IsCompleted);
+        if (pendingHigh > 0)
+        {
+            throw DomainException.Conflict(
+                ErrorCodes.GrantHasPendingHighPriorityTasks,
+                $"Grant {ReferenceNumber} has {pendingHigh} pending High-priority "
+                + (pendingHigh == 1 ? "task." : "tasks."));
+        }
+
+        Status = GrantStatus.Closed;
+        Touch();
+        return true;
+    }
+
     private void Touch() => Version = Guid.NewGuid();
 }
