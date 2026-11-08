@@ -36,3 +36,13 @@ public sealed record CreateTaskRequest
     [Required(ErrorMessage = "Priority is required.")]
     public TaskPriority? Priority { get; init; }
 }
+
+/// <param name="DaysOverdue">Whole days between the due date and today; always at least 1.</param>
+public sealed record OverdueTaskDto(
+    int Id,
+    int GrantId,
+    string GrantReferenceNumber,
+    string Title,
+    DateOnly DueDate,
+    TaskPriority Priority,
+    int DaysOverdue);

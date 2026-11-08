@@ -1,5 +1,6 @@
 using GrantTracker.Api.Common.Time;
 using GrantTracker.Data;
+using GrantTracker.Domain.Tasks;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrantTracker.Api.Features.Tasks;
@@ -48,5 +49,28 @@ public sealed class TaskService(AppDbContext db, BusinessClock clock)
         }
 
         return TaskDto.From(task, today);
+    }
+
+    /// <summary>
+    /// Lists overdue tasks across all grants (BR-6), most overdue first. Tasks
+    /// on closed grants are included: BR-5 lets a grant close with pending Low
+    /// or Medium tasks.
+    /// </summary>
+    public async Task<IReadOnlyList<OverdueTaskDto>> ListOverdueAsync(CancellationToken cancellationToken)
+    {
+        var today = clock.Today;
+        var rows = await db.Tasks.AsNoTracking()
+            .Where(GrantTask.OverdueOn(today))
+            .OrderBy(t => t.DueDate)
+            .ThenBy(t => t.Id)
+            .Select(t => new { t.Id, t.GrantId, t.Grant.ReferenceNumber, t.Title, t.DueDate, t.Priority })
+            .ToListAsync(cancellationToken);
+
+        return
+        [
+            .. rows.Select(r => new OverdueTaskDto(
+                r.Id, r.GrantId, r.ReferenceNumber, r.Title, r.DueDate, r.Priority,
+                today.DayNumber - r.DueDate.DayNumber)),
+        ];
     }
 }

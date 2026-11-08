@@ -22,8 +22,16 @@ public static class TaskEndpoints
             .WithSummary("Mark a task as completed. Safe to repeat: the original completion date is kept.")
             .ProducesProblem(StatusCodes.Status409Conflict);
 
+        api.MapGet("/tasks/overdue", ListOverdue)
+            .WithTags("Tasks")
+            .WithSummary("List overdue tasks across all grants, most overdue first.");
+
         return api;
     }
+
+    private static async Task<Ok<IReadOnlyList<OverdueTaskDto>>> ListOverdue(
+        TaskService service, CancellationToken cancellationToken) =>
+        TypedResults.Ok(await service.ListOverdueAsync(cancellationToken));
 
     private static async Task<Results<Created<TaskDto>, ProblemHttpResult>> AddTask(
         int grantId, CreateTaskRequest request, TaskService service, CancellationToken cancellationToken)
