@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using GrantTracker.Api.Common.Database;
 using GrantTracker.Api.Common.Errors;
 using GrantTracker.Api.Common.Time;
+using GrantTracker.Api.Features.Grants;
 using GrantTracker.Data;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
@@ -51,6 +52,9 @@ builder.Services.AddHealthChecks()
 
 builder.Services.AddOpenApi();
 
+// Use cases.
+builder.Services.AddScoped<GrantService>();
+
 var app = builder.Build();
 
 app.UseSerilogRequestLogging();
@@ -62,6 +66,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "Grant Task Tracker v1"));
 }
+
+var api = app.MapGroup("/api");
+api.MapGrantEndpoints();
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
