@@ -160,10 +160,10 @@ and data access" requirement (SPECS §11):
 ```
 GrantTracker.Domain/
 ├── Grants/
-│   ├── Grant.cs                 # AddTask(), Close(), Touch()
+│   ├── Grant.cs                 # AddTask(), CompleteTask(), Close(); private Touch()
 │   └── GrantStatus.cs           # Open, Closed
 ├── Tasks/
-│   ├── GrantTask.cs             # Complete(), IsOverdue(today)
+│   ├── GrantTask.cs             # IsOverdue(today); internal Complete(), called by Grant
 │   └── TaskPriority.cs          # Low, Medium, High
 └── Common/
     ├── DomainException.cs       # Code, Kind (Validation | Conflict), Field?
@@ -179,13 +179,16 @@ GrantTracker.Domain/
   | BR-1 | `Grant.AddTask` — grant must be `Open`    | Conflict `GRANT_CLOSED`  |
   | BR-2 | `Grant.AddTask(…, today)`                 | Validation on `dueDate`  |
   | BR-3 | `Grant.AddTask` — trimmed, 1–100 chars    | Validation on `title`    |
-  | BR-4 | `GrantTask.Complete(today)` — no-op if already completed | — (idempotent) |
+  | BR-4 | `Grant.CompleteTask(taskId, today)` — no-op if already completed | — (idempotent) |
   | BR-5 | `Grant.Close()` — no pending `High` tasks | Conflict `GRANT_HAS_PENDING_HIGH_PRIORITY_TASKS` |
   | BR-6 | `GrantTask.IsOverdue(today)` — `CompletedDate is null && DueDate < today` | — |
 
 - Domain methods take `DateOnly today` as a parameter and never read a
   clock, which satisfies BR-6's testability requirement by
   construction.
+- `Grant` is the only way to change a grant or its tasks. Each changing
+  method calls the private `Touch()` (§6), so a service cannot change a
+  task and forget to update the grant's version.
 - Rule violations throw `DomainException`. Exceptions were chosen over
   a `Result<T>` type because there is a single global handler that maps
   them, and it keeps service code linear. If the domain grows, a
@@ -204,7 +207,7 @@ GrantTracker.Data/
 │   └── IdempotencyRecord.cs
 ├── Migrations/
 ├── Seeding/
-│   └── DatabaseSeeder.cs               # uses TimeProvider; dates relative to startup
+│   └── DatabaseSeeder.cs               # takes business `today`; dates relative to startup
 └── DataServiceCollectionExtensions.cs  # AddData(connectionString)
 ```
 
@@ -249,8 +252,10 @@ GrantTracker.Api/
 
 Services are registered as scoped. `BusinessClock` is the only class
 that reads `TimeProvider`. It converts "now" to a business `DateOnly`
-using a configured time zone (`Business:TimeZone`), so "today" does not
-depend on the server's locale.
+using a configured fixed UTC offset (`Business:UtcOffset`, see §8), so
+"today" does not depend on the server's locale. The seeder also gets
+`today` from `BusinessClock`, so seed dates and overdue checks use the
+same calendar.
 
 ### 4.5 Request pipeline
 
@@ -286,8 +291,12 @@ prefix and keeps health/OpenAPI routes separate.
   adds `grantId`, `grantReferenceNumber`, and `daysOverdue`.
 - Overdue ordering is `DueDate ASC, Id ASC`: the oldest due date is the
   most overdue, and `Id` makes ties deterministic.
+- The overdue list includes tasks on closed grants. BR-5 allows a grant
+  to close with pending Low or Medium tasks, and the spec asks for
+  overdue tasks across all grants.
 - **Completing an already-completed task** returns `200` with the
   task unchanged, including the original `CompletedDate` (BR-4, OP-3).
+  This also holds when two completions of the same task race (§6).
 - **Closing an already-closed grant** returns `200` unchanged, for the
   same retry-safety reason.
 
@@ -326,9 +335,9 @@ attach each message to its form field.
 
 - `Grant` has a `Version` (`Guid`) column configured with
   `IsConcurrencyToken()`.
-- **Every write that touches a grant or its tasks calls
-  `grant.Touch()`**, which assigns a new `Version`. This covers adding a
-  task, completing a task, and closing a grant.
+- **Every change to a grant or its tasks goes through a `Grant`
+  method** (`AddTask`, `CompleteTask`, `Close`). Each one calls the
+  private `Touch()`, which assigns a new `Version`.
 - The task insert or update and the grant's version update are saved in
   one `SaveChanges` call, which is a single transaction. EF issues
   `UPDATE Grants SET Version = @new WHERE Id = @id AND Version = @old`.
@@ -338,6 +347,11 @@ attach each message to its form field.
 - The API maps that exception to `409 CONCURRENCY_CONFLICT`. The
   frontend shows "This grant was changed by someone else", refetches,
   and lets the officer retry.
+- **Exception: completing a task.** Completion is idempotent, so after a
+  conflict the service reloads the grant and tries once more. If the
+  task has meanwhile been completed, the retry changes nothing and
+  returns `200` with the original `CompletedDate`. A second conflict
+  returns `409`.
 
 **Why this protects BR-5 and not just a single row.** Both sides of the
 race (closing the grant, and adding a High task) must update the same
@@ -354,8 +368,8 @@ updates when two officers complete the same task.
 - SQLite allows one writer at a time across the whole database.
   Microsoft.Data.Sqlite retries on `SQLITE_BUSY` until the command
   timeout. WAL mode is enabled so reads don't block writes.
-- The invariant holds only if every write path calls `Touch()`. An
-  integration test per write path guards against regressions.
+- The invariant holds only if every write goes through `Grant`'s
+  methods. A test per write path checks that `Version` changes.
 
 **Tests:**
 
@@ -365,6 +379,8 @@ updates when two officers complete the same task.
   throws and the database still satisfies BR-5.
 - An API-level test fires both requests in parallel and asserts that
   exactly one succeeds and the other returns 409 or a BR-5 conflict.
+- Two simultaneous completions of the same task both return `200` with
+  the same `CompletedDate`.
 
 ## 7. Idempotent task creation (OP-3)
 
@@ -382,9 +398,12 @@ updates when two officers complete the same task.
    - **Not found:** run the use case, then insert the task and the
      idempotency record (key, hash, status, response JSON, `CreatedAt`)
      in the same `SaveChanges`.
-4. If two identical requests race, the record's primary key makes the
-   second insert fail. The server catches that, reloads the record, and
-   replays it.
+4. If two identical requests race, the second save fails. It can fail
+   on the record's primary key, or on the concurrency check, because
+   both requests change the grant's `Version`. The server catches both,
+   looks up the key, and replays the stored response if the hash
+   matches. If no record exists, the failure is a real concurrency
+   conflict and returns `409`.
 5. Only successful responses are stored. A rejected request can be
    corrected and retried with the same key only if the body is
    unchanged; otherwise the client generates a new key.
@@ -399,6 +418,15 @@ updates when two officers complete the same task.
   replaces it in tests.
 - `BusinessClock.Today` is the only conversion from an instant to a
   calendar date. Services pass `today` into domain methods.
+- The business day uses a fixed UTC offset from `Business:UtcOffset`
+  (environment variable `Business__UtcOffset`). Accepted formats are
+  `±H`, `±HH` and `±HH:mm`, for example `+1`, `+7`, `-8` or `+05:30`,
+  from `-12:00` to `+14:00`. The default is `+00:00`. An invalid value
+  stops the app at startup with a message naming the setting.
+- A fixed offset does not follow daylight saving. An office that uses
+  daylight saving must change the setting when its clocks change. An
+  IANA time zone would avoid that, but would make the setting less
+  direct.
 - The JSON API exchanges dates as `yyyy-MM-dd` strings.
 - `CompletedDate` is a `DateOnly`, because the spec describes it as a
   date and BR-4/BR-6 reason in calendar days. If an audit timestamp is
@@ -494,6 +522,9 @@ The Zod schema mirrors BR-2 and BR-3: a trimmed title of 1–100
 characters, a due date no earlier than today, and a due date no earlier
 than the grant's application date. It gives early feedback only; the
 server stays authoritative because the client's clock may be wrong.
+"Today" on the client is the browser's local date. It can differ by a
+day from the server's business date around midnight. When it does, the
+server's `400` is shown on the due-date field.
 
 ## 10. Testing architecture
 

@@ -30,4 +30,5 @@ decision into `docs/decisions/`; keep task-local choices in the plan.
 
 ## Active Plans
 
-No active execution plans are currently indexed.
+- [grant-task-tracker.md](active/grant-task-tracker.md): build the Grant Task
+  Tracker described in `SPECS.md`.
