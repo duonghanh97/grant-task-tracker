@@ -3,6 +3,7 @@ using GrantTracker.Api.Common.Database;
 using GrantTracker.Api.Common.Errors;
 using GrantTracker.Api.Common.Time;
 using GrantTracker.Api.Features.Grants;
+using GrantTracker.Api.Features.Tasks;
 using GrantTracker.Data;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
@@ -54,6 +55,7 @@ builder.Services.AddOpenApi();
 
 // Use cases.
 builder.Services.AddScoped<GrantService>();
+builder.Services.AddScoped<TaskService>();
 
 var app = builder.Build();
 
@@ -69,6 +71,7 @@ if (app.Environment.IsDevelopment())
 
 var api = app.MapGroup("/api");
 api.MapGrantEndpoints();
+api.MapTaskEndpoints();
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
