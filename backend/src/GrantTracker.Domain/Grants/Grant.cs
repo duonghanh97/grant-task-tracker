@@ -116,5 +116,27 @@ public sealed class Grant
         return task;
     }
 
+    /// <summary>
+    /// Marks one of this grant's tasks as completed on <paramref name="today"/>
+    /// (BR-4). Repeating the call keeps the original completion date.
+    /// </summary>
+    /// <returns><c>true</c> if the task changed; <c>false</c> if it was already completed.</returns>
+    public bool CompleteTask(GrantTask task, DateOnly today)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        if (!_tasks.Contains(task))
+        {
+            throw new ArgumentException("The task does not belong to this grant.", nameof(task));
+        }
+
+        if (!task.Complete(today))
+        {
+            return false;
+        }
+
+        Touch();
+        return true;
+    }
+
     private void Touch() => Version = Guid.NewGuid();
 }

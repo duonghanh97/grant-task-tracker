@@ -42,4 +42,16 @@ public sealed class GrantTask
     public DateOnly? CompletedDate { get; private set; }
 
     public bool IsCompleted => CompletedDate is not null;
+
+    /// <summary>Records the completion date unless the task is already completed.</summary>
+    internal bool Complete(DateOnly today)
+    {
+        if (IsCompleted)
+        {
+            return false;
+        }
+
+        CompletedDate = today;
+        return true;
+    }
 }
