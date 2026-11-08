@@ -1,3 +1,24 @@
 # Harness core maintenance binary
 scripts/bin/harness
 scripts/bin/harness.exe
+
+# .NET
+bin/
+obj/
+TestResults/
+*.user
+.vs/
+
+# Node
+node_modules/
+dist/
+coverage/
+
+# Local SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
+# OS / editor
+.DS_Store
+.idea/

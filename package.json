@@ -1,0 +1,9 @@
+{
+  "name": "grant-task-tracker",
+  "private": true,
+  "scripts": {
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "dotnet test backend",
+    "test:frontend": "npm --prefix frontend test -- --run"
+  }
+}
