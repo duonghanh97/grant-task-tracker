@@ -2,17 +2,17 @@
 
 ## Tools and models
 
-- **Claude Code** (Anthropic's coding agent) in the VS Code extension, using
-  **Claude Opus 5.5**. It read files and ran shell commands (build, tests,
-  git) in the repository, with the developer approving permissions.
-
-> **To be completed by the author:** list any other AI tools used (for
-> example to draft `SPECS.md`, `docs/ARCHITECTURE.md` or the mockups in
-> `docs/mockups/`).
+| Stage | Tool and model | How I used it |
+| --- | --- | --- |
+| Specification | ChatGPT | I had it read and draft [`SPECS.md`](SPECS.md), then pushed it to name the tech stack and libraries explicitly instead of leaving them open. |
+| Mockups | ChatGPT (image generation) | First a quick round of pictures to explore the layout. Once I had settled on shadcn/ui as the component library, I regenerated them so they match real components. Results are in [`docs/mockups/`](docs/mockups/). |
+| Agent harness | Claude Code | I applied an agent harness to the repository before any code was written (see [Agent setup](#agent-setup)). |
+| Planning | Claude Code, **Claude Opus 5.5**, effort **extra high** | Generated the plan in `docs/plans/` following the repository's templates. |
+| Implementation | Claude Code, **Claude Opus 5.5**, effort **high** | Wrote the code and tests, one task per commit, running the build and tests before each commit. I approved its permissions as it worked. |
 
 ## Agent setup
 
-The instruction files are committed:
+I committed the instruction files so the setup can be reviewed:
 
 - [`AGENTS.md`](AGENTS.md) is the single source of agent instructions.
   [`CLAUDE.md`](CLAUDE.md) imports it, because Claude Code does not read
@@ -35,70 +35,84 @@ The instruction files are committed:
 
 ## Workflow
 
-1. **Specification and design.** `SPECS.md` (requirements) and
-   `docs/ARCHITECTURE.md` (proposed design) were written first.
-2. **Plan.** The agent was asked to plan and break down tasks from the spec,
-   the architecture and the mockups. It produced a phased task list, each
+1. **Specification.** I drafted [`SPECS.md`](SPECS.md) with ChatGPT and made
+   it state the tech stack and libraries clearly.
+2. **Mockups.** I chose shadcn/ui, then generated the mockups with ChatGPT
+   against that library.
+3. **Architecture.** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) holds
+   the proposed design.
+4. **Plan.** With the spec, mockups and architecture final, I asked Claude
+   Code to plan and break down the work. It produced a phased task list, each
    task with a "done when" check. It also listed where the mockups go beyond
    the spec (D1–D6) and four gaps in the architecture (G1–G4), each with a
    recommendation.
-3. **Decisions by the developer.** The developer chose a configurable fixed
-   UTC offset for "today" (D6) and accepted the other recommendations. The
-   agent recorded the decisions in the plan and updated the architecture.
-4. **Implementation, one task per commit.** The work went in order: domain,
-   data, API, concurrency and idempotency, then the frontend. Each rule's
-   tests were written with the rule. Every code commit was built and tested
-   before it was made, and the history is not squashed.
-5. **Verifying the tests.** For every subtle rule, the agent planted a bug,
+5. **Decisions.** I made the open decisions (see
+   [My own decisions](#my-own-decisions)), and the agent recorded them in the
+   plan and the architecture.
+6. **Implementation.** One task per commit, in order: domain, data, API,
+   concurrency and idempotency, then the frontend. Each rule's tests were
+   written with the rule, every commit was built and tested first, and I kept
+   the history unsquashed.
+7. **Verifying the tests.** For every subtle rule, the agent planted a bug,
    showed that a test failed, and restored the code (see
    [`TESTING.md` §3](TESTING.md#3-how-the-ai-assisted-tests-were-verified)).
-6. **Running the real stack.** The API and Vite dev server were started and
+8. **Running the real stack.** The API and Vite dev server were started and
    checked through the proxy, including the response when the API is down.
 
 ## Key prompts
 
-Prompts given to the agent, verbatim:
+1. To ChatGPT, for the mockups:
+   *"I will use shadcn/ui React component lib, given the key features below,
+   generate mockups for simple grant task tracker web app."*
+2. To Claude Code, for the plan:
+   *"After finalize the specs, mockups, architecture, please make a plan,
+   break down tasks."*
+3. To Claude Code, to settle the open decisions:
+   *"D6. I want to have a configurable timezone (+1, +7, -8). Everything else
+   follows your recommendations."*
 
-1. *"based on @SPECS.md, @docs/ARCHITECTURE.md, docs/mockups, please make a
-   plan, break down tasks"* produced the plan and the open decisions.
-2. *"D6. I want to have a configurable timezone (+1, +7, -8). Everything else
-   follows your recommendations"* settled the open decisions.
-3. *"okay, let implement"* and *"continue please"* started and resumed the
-   implementation.
-4. *"i have installed nvm and node v26.13.0. please keep on your work"*
-   unblocked the frontend, after the agent stopped rather than install a
-   runtime itself.
+## Where the AI was wrong
 
-## AI mistakes and corrections
-
-1. **Work lost while verifying tests.** To prove the concurrency tests
-   detect regressions, the agent edited `TaskService.cs`, ran the tests,
-   then restored the file with `git checkout`. The file also held
-   **uncommitted** work (the completion retry, G1), so the restore deleted
-   it. The agent noticed from `git status`, re-applied the change, and re-ran
-   all tests. Correction: commit before running mutation checks. This was
-   followed for the rest of the project.
-2. **A test that passed for the wrong reason.** A frontend test for "retry
+1. **Over-engineered mockups.** When I asked ChatGPT for the mockups, it
+   added features the requirements never asked for: an Add Grant button and
+   dialog, a task description field, Grant Details, Documents and Activity
+   tabs, search boxes, a notification bell, a user menu, and Reports and
+   Settings navigation. I treated the mockups as a visual guide, not as
+   scope. During planning each extra was listed as an open decision (D1–D3)
+   and left out, so only what [`SPECS.md`](SPECS.md) requires was built (see
+   the plan's
+   [Out of scope](docs/plans/active/grant-task-tracker.md) list).
+2. **Work lost while verifying tests.** To prove the concurrency tests catch
+   regressions, Claude Code edited `TaskService.cs`, ran the tests, then
+   restored the file with `git checkout`. The file also held uncommitted work
+   (the completion retry, G1), so the restore deleted it. It was noticed from
+   `git status`, the change was re-applied and all tests re-run. From then on
+   the rule was: commit before running mutation checks.
+3. **A test that passed for the wrong reason.** A frontend test for "retry
    completion after a network error" passed even though only one request was
-   made. A success toast from the *previous* test survived in sonner's global
-   store. The agent investigated instead of loosening the assertion. It first
-   ruled out MSW with a probe test, then clearing the toast store between
-   tests fixed it. It then proved the test fails without the retry.
-3. **Test-only code in production.** The first BR-1 test added an
-   `internal CloseForTest()` method to the domain, because `Close()` did not
-   exist yet. It was removed before committing, and the test moved to the
-   BR-5 commit.
-4. **Design caught during implementation.** The architecture's
+   made: a success toast from the *previous* test survived in sonner's global
+   store. Instead of loosening the assertion, the cause was tracked down,
+   the toast store is now cleared between tests, and the test was shown to
+   fail without the retry.
+4. **Test-only code in production.** The first BR-1 test added an
+   `internal CloseForTest()` method to the domain because `Close()` did not
+   exist yet. It was removed before committing and the test moved to the BR-5
+   commit.
+5. **A design gap found during implementation.** The architecture's
    `Grant.CompleteTask(taskId, …)` could not work for tasks that are not yet
-   saved, because they all have id 0. It was changed to take the task itself,
-   and the architecture document was updated.
+   saved, because they all have id 0. It now takes the task itself, and the
+   architecture document was updated.
 
-> **To be completed by the author:** add or replace with an example from
-> your own review, if you corrected the AI in ways not listed here.
+## My own decisions
 
-## The developer's own contributions
-
-> **To be completed by the author.** For example: writing or editing
-> `SPECS.md` and `docs/ARCHITECTURE.md`; producing the mockups; setting up the
-> agent harness and hooks; choosing D6 and accepting or rejecting each
-> recommendation; reviewing each commit; running the UI manually.
+- **"Today" uses a configurable UTC offset (D6).** Overdue status depends on
+  what "today" means, so I made the timezone a configurable fixed UTC offset
+  (for example +1, +7, −8) rather than relying on the server's clock.
+- **Serilog for logging.** When suggesting the tech stack, ChatGPT tended to
+  pick whatever is built in without asking what it is for, and it proposed
+  .NET's built-in logging. I chose Serilog instead, because structured logs
+  are easier to ship to monitoring tools, search and trace later.
+- **shadcn/ui** as the component library, chosen before the final mockups.
+- I accepted the agent's recommendations for the other open decisions
+  (D1–D5, G1–G4).
+- I set up the agent harness before implementation started.
