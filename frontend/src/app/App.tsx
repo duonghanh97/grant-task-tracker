@@ -1,3 +1,13 @@
+import { useState } from 'react'
+import { createBrowserRouter, RouterProvider } from 'react-router'
+import { AppProviders } from './providers'
+import { routes } from './router'
+
 export function App() {
-  return <h1 className="text-2xl font-semibold">Grant Task Tracker</h1>
+  const [router] = useState(() => createBrowserRouter(routes))
+  return (
+    <AppProviders>
+      <RouterProvider router={router} />
+    </AppProviders>
+  )
 }
