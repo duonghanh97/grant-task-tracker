@@ -103,11 +103,11 @@ history.
 ### Phase 0 – Setup
 
 - [x] **0.1** Decide D1–D6 and record them in this plan.
-- [ ] **0.2** Root files: `global.json` (SDK 10.0.102, `rollForward:
+- [x] **0.2** Root files: `global.json` (SDK 10.0.102, `rollForward:
   latestFeature`), `.editorconfig`, `.gitignore` (`bin/`, `obj/`,
   `node_modules/`, `dist/`, `*.db*`), root `package.json`.
   *Done when:* `dotnet --version` in the repo reports 10.0.x.
-- [ ] **0.3** Backend skeleton: `GrantTracker.slnx`, `Directory.Build.props`
+- [x] **0.3** Backend skeleton: `GrantTracker.slnx`, `Directory.Build.props`
   (nullable, warnings as errors), `Directory.Packages.props`, three source
   projects and two test projects referencing each other as in Architecture
   §4.1, and `dotnet-ef` as a local tool.
@@ -118,50 +118,50 @@ history.
 
 ### Phase 1 – Domain (test-first, no database)
 
-- [ ] **1.1** `Grant`, `GrantTask`, the enums, `DomainException` and
+- [x] **1.1** `Grant`, `GrantTask`, the enums, `DomainException` and
   `ErrorCodes`. `Grant` is the only way to change a grant or its tasks: its
   `AddTask`, `CompleteTask` and `Close` methods call a private `Touch()`.
   *Done when:* it compiles and the constructor tests pass.
-- [ ] **1.2** BR-1, BR-2 and BR-3 in `Grant.AddTask(title, dueDate, priority,
+- [x] **1.2** BR-1, BR-2 and BR-3 in `Grant.AddTask(title, dueDate, priority,
   today)`.
   *Done when:* tests cover a closed grant; a past due date; a due date before
   the application date; a due date of today (allowed); and titles that are
   null, empty, whitespace, 100 characters (allowed), 101 characters, or need
   trimming.
-- [ ] **1.3** BR-4 in `Grant.CompleteTask(taskId, today)`.
+- [x] **1.3** BR-4 in `Grant.CompleteTask(taskId, today)`.
   *Done when:* the first call sets `CompletedDate` to `today`; a second call
   with a later `today` keeps the original date and leaves `Version` unchanged.
-- [ ] **1.4** BR-5 in `Grant.Close()`.
+- [x] **1.4** BR-5 in `Grant.Close()`.
   *Done when:* a pending High task blocks closing with
   `GRANT_HAS_PENDING_HIGH_PRIORITY_TASKS`; completed High tasks and pending
   Low or Medium tasks do not block it; closing a closed grant does nothing.
-- [ ] **1.5** BR-6 in `GrantTask.IsOverdue(today)`.
+- [x] **1.5** BR-6 in `GrantTask.IsOverdue(today)`.
   *Done when:* due yesterday → overdue; due today → not overdue; completed
   with a past due date → not overdue.
 
 ### Phase 2 – Data
 
-- [ ] **2.1** `AppDbContext` and its configurations: `Version` as a
+- [x] **2.1** `AppDbContext` and its configurations: `Version` as a
   concurrency token, unique `ReferenceNumber`, `Title` up to 100 characters,
   enums stored as strings, `DateOnly` dates, cascade delete, an index on
   `(CompletedDate, DueDate)`. Add `IdempotencyRecord`, the first migration and
   WAL mode.
   *Done when:* the migration applies to an empty SQLite file.
-- [ ] **2.2** `DatabaseSeeder(context, today)` and `Database:ResetOnStartup`.
+- [x] **2.2** `DatabaseSeeder(context, today)` and `Database:ResetOnStartup`.
   *Done when:* a test with a fixed `today` checks the 4 grants, the 6 tasks,
   their relative dates, and each case SPECS §9 asks the seed data to show.
 
 ### Phase 3 – API foundation
 
-- [ ] **3.1** `Program.cs`: Serilog, ProblemDetails and the exception
+- [x] **3.1** `Program.cs`: Serilog, ProblemDetails and the exception
   handlers, `TimeProvider`, `BusinessClock` with `Business:UtcOffset`, JSON
   settings (enums as strings, `yyyy-MM-dd` dates), OpenAPI and Swagger UI, the
   `/api` group with `ValidationFilter`, `/health/live` and `/health/ready`.
   *Done when:* the app starts and `/swagger` and both health endpoints respond.
-- [ ] **3.2** Test fixture: `WebApplicationFactory<Program>`, a temporary
+- [x] **3.2** Test fixture: `WebApplicationFactory<Program>`, a temporary
   SQLite file per test, `FakeTimeProvider`, and an offset each test can set.
   *Done when:* a health-check test and an error-format test pass.
-- [ ] **3.3** Business date tests (D6).
+- [x] **3.3** Business date tests (D6).
   *Done when:*
   - At 2026-11-08T20:00Z, `+1` and `-8` give 2026-11-08 and `+7` gives
     2026-11-09.
@@ -171,37 +171,39 @@ history.
 
 ### Phase 4 – Endpoints (each with integration tests)
 
-- [ ] **4.1** `GET /api/grants?status=` and `GET /api/grants/{id}`.
+- [x] **4.1** `GET /api/grants?status=` and `GET /api/grants/{id}`.
   *Done when:* pending counts are right; `isOverdue` is set; a bad status
   returns 400; an unknown grant returns 404; at 2026-11-08T20:00Z a task due
   2026-11-08 is overdue with `+7` and not with `-8`.
-- [ ] **4.2** `POST /api/grants/{id}/tasks`.
-  *Done when:* it returns 201 with a `Location` header; 400 with field errors
+- [x] **4.2** `POST /api/grants/{id}/tasks`.
+  *Done when:* it returns 201 with the task (no `Location`; see Decisions); 400 with field errors
   for BR-2 and BR-3; 404; 409 `GRANT_CLOSED`.
-- [ ] **4.3** `PUT /api/tasks/{id}/complete`.
+- [x] **4.3** `PUT /api/tasks/{id}/complete`.
   *Done when:* it returns 200; repeating it after moving the clock forward
   keeps the original date; an unknown task returns 404.
-- [ ] **4.4** `PUT /api/grants/{id}/close`.
+- [x] **4.4** `PUT /api/grants/{id}/close`.
   *Done when:* it returns 200; 409 under BR-5; 200 for a grant that is already
   closed; 404.
-- [ ] **4.5** `GET /api/tasks/overdue`.
+- [x] **4.5** `GET /api/tasks/overdue`.
   *Done when:* results are sorted by `DueDate` then `Id`; `daysOverdue` is
   set; completed tasks and tasks due today are left out; tasks on closed
   grants are included (G4).
 
 ### Phase 5 – Concurrency (OP-2) and safe retries (OP-3)
 
-- [ ] **5.1** OP-2: `DbUpdateConcurrencyException` maps to 409
+- [x] **5.1** OP-2: `DbUpdateConcurrencyException` maps to 409
   `CONCURRENCY_CONFLICT`. Completion reloads and retries once after a
   conflict (G1).
   *Done when:*
   - (a) A test with two `DbContext`s races closing a grant against adding a
     High task: the second save fails and BR-5 still holds.
-  - (b) A parallel API test of the same race: exactly one request succeeds.
+  - (b) API tests of the same race, made deterministic with an EF Core
+    interceptor that sends the competing request between read and write,
+    plus a parallel smoke test: exactly one request succeeds.
   - (c) Every write path changes `Version`.
   - (d) Two simultaneous completions of one task both return 200 with the
     same `CompletedDate`.
-- [ ] **5.2** OP-3: `Idempotency-Key` on task creation.
+- [x] **5.2** OP-3: `Idempotency-Key` on task creation.
   *Done when:*
   - A missing key returns 400.
   - A repeat replays the stored response with `Idempotent-Replayed: true` and
@@ -289,6 +291,24 @@ All dated 2026-11-08 and agreed with the repository owner.
 - **Seeder date:** the seeder gets `today` from `BusinessClock` instead of
   reading `TimeProvider` itself.
 
+Decided during implementation (2026-11-08 to 2026-11-09):
+
+- **IDs** are integers (SPECS §13 decision 1).
+- **`Grant.CompleteTask(task, today)`** takes the task instead of its id:
+  new tasks all have id 0 until saved, and the seeder completes tasks
+  before saving.
+- **Seed data** is built through the domain methods, with tasks added
+  "as of" the grant's application date, so the seed obeys BR-1 to BR-5.
+- **Idempotency records** store a reference to the created task, not a
+  JSON snapshot. Replays return the task's current state. This keeps
+  task and record in one `SaveChanges` and made the race testable.
+- **No `Location` header** on 201: there is no single-task endpoint.
+- **No CORS policy**: the Vite proxy is the only development path.
+- **`IDEMPOTENCY_KEY_INVALID`** (400) for keys over 100 characters, and
+  generic `NOT_FOUND` / `UNEXPECTED_ERROR` codes so every error has a code.
+- **Race tests** use a test-only `SaveChangesInterceptor` registered with
+  EF Core's `ConfigureDbContext`, so no production hook is needed.
+
 D6, G1–G4 and the seeder date are now part of
 [docs/ARCHITECTURE.md](../../ARCHITECTURE.md).
 
@@ -297,7 +317,18 @@ D6, G1–G4 and the seeder date are now part of
 Record notable AI mistakes, corrections and owner contributions here as they
 happen.
 
-- (none yet)
+- 2026-11-08, AI mistake: while proving the concurrency tests catch
+  regressions, the agent mutated `TaskService.cs`, ran the tests, then
+  restored it with `git checkout`. The file had uncommitted work (the G1
+  retry), so the restore silently deleted it. Caught by checking
+  `git status` afterwards; the retry was re-applied and the full suite
+  re-run. Correction: commit before mutation checks, then restore with
+  `git checkout`.
+- 2026-11-08, AI mistake: the first draft of the BR-1 test added an
+  `internal CloseForTest()` method to production code because `Close()`
+  did not exist yet. Replaced by moving the test to the BR-5 commit.
+- 2026-11-08, design catch: completing tasks by id inside the domain
+  would not work for unsaved tasks (all id 0); changed to pass the task.
 
 ## Validation
 

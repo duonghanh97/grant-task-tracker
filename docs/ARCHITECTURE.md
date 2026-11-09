@@ -179,7 +179,7 @@ GrantTracker.Domain/
   | BR-1 | `Grant.AddTask` — grant must be `Open`    | Conflict `GRANT_CLOSED`  |
   | BR-2 | `Grant.AddTask(…, today)`                 | Validation on `dueDate`  |
   | BR-3 | `Grant.AddTask` — trimmed, 1–100 chars    | Validation on `title`    |
-  | BR-4 | `Grant.CompleteTask(taskId, today)` — no-op if already completed | — (idempotent) |
+  | BR-4 | `Grant.CompleteTask(task, today)` — no-op if already completed | — (idempotent) |
   | BR-5 | `Grant.Close()` — no pending `High` tasks | Conflict `GRANT_HAS_PENDING_HIGH_PRIORITY_TASKS` |
   | BR-6 | `GrantTask.IsOverdue(today)` — `CompletedDate is null && DueDate < today` | — |
 
@@ -238,12 +238,16 @@ GrantTracker.Api/
 │       └── TaskContracts.cs            # CreateTaskRequest, TaskDto, OverdueTaskDto
 ├── Common/
 │   ├── Errors/
+│   │   ├── ApiProblem.cs               # ProblemDetails builders, error types/titles
 │   │   ├── DomainExceptionHandler.cs   # IExceptionHandler → ProblemDetails
-│   │   └── ConcurrencyExceptionHandler.cs
+│   │   ├── ConcurrencyExceptionHandler.cs
+│   │   └── BadRequestExceptionHandler.cs # malformed JSON / bad enum → 400
 │   ├── Validation/
 │   │   └── ValidationFilter.cs         # endpoint filter using MiniValidator
 │   ├── Idempotency/
 │   │   └── IdempotencyService.cs
+│   ├── Database/
+│   │   └── DatabaseStartup.cs          # migrate, seed, purge expired keys at startup
 │   └── Time/
 │       └── BusinessClock.cs            # Today => DateOnly from TimeProvider
 ├── appsettings.json
@@ -262,7 +266,7 @@ same calendar.
 ```
 Serilog request logging
   → Exception handler (ProblemDetails)
-  → CORS (Development only; Vite proxy is the default)
+  → Status code pages (ProblemDetails for empty 4xx/5xx, e.g. unknown routes)
   → /api route group
       → ValidationFilter (MiniValidation → 400 ValidationProblem)
       → Endpoint → Service → Domain + AppDbContext
@@ -287,6 +291,11 @@ prefix and keeps health/OpenAPI routes separate.
 | GET    | `/health/live`              | 200                        | —                              |
 | GET    | `/health/ready`             | 200 (DB reachable)         | 503                            |
 
+- No CORS policy is configured: in development the Vite dev server
+  proxies `/api`, so the browser only talks to one origin.
+- `POST /api/grants/{id}/tasks` returns `201` with the task in the body
+  and no `Location` header, because there is no endpoint that returns a
+  single task.
 - `TaskDto` includes a server-computed `isOverdue`. `OverdueTaskDto`
   adds `grantId`, `grantReferenceNumber`, and `daysOverdue`.
 - Overdue ordering is `DueDate ASC, Id ASC`: the oldest due date is the
@@ -323,11 +332,14 @@ attach each message to its form field.
 | ---------------------------------------- | ------ | -------------------------- |
 | `VALIDATION_FAILED`                      | 400    | BR-2, BR-3, malformed input |
 | `IDEMPOTENCY_KEY_MISSING`                | 400    | OP-3                       |
+| `IDEMPOTENCY_KEY_INVALID`                | 400    | OP-3 (key over 100 chars)  |
 | `GRANT_NOT_FOUND` / `TASK_NOT_FOUND`     | 404    |                            |
+| `NOT_FOUND`                              | 404    | unknown route              |
 | `GRANT_CLOSED`                           | 409    | BR-1                       |
 | `GRANT_HAS_PENDING_HIGH_PRIORITY_TASKS`  | 409    | BR-5                       |
 | `CONCURRENCY_CONFLICT`                   | 409    | OP-2                       |
 | `IDEMPOTENCY_KEY_REUSED`                 | 422    | OP-3 (same key, different body) |
+| `UNEXPECTED_ERROR`                       | 5xx    | unhandled server error     |
 
 ## 6. Concurrency strategy (OP-2)
 
@@ -377,8 +389,12 @@ updates when two officers complete the same task.
   SQLite database and loads the grant in both. It closes the grant in
   one, adds a High task in the other, and asserts that the second save
   throws and the database still satisfies BR-5.
-- An API-level test fires both requests in parallel and asserts that
-  exactly one succeeds and the other returns 409 or a BR-5 conflict.
+- API-level tests make the race deterministic: a test-only EF Core
+  `SaveChangesInterceptor` sends the competing request after the first
+  request has read the grant but before it saves. Close-vs-add-High and
+  add-High-vs-close each end with exactly one success and BR-5 intact.
+- A parallel test fires close and add-High together for ten grants and
+  checks that exactly one wins each time.
 - Two simultaneous completions of the same task both return `200` with
   the same `CompletedDate`.
 
@@ -392,23 +408,28 @@ updates when two officers complete the same task.
 2. The server computes a SHA-256 hash of `grantId` plus the
    canonicalised request body.
 3. It then looks the key up in `IdempotencyRecords`:
-   - **Found, same hash:** replay the stored `201` response and add an
-     `Idempotent-Replayed: true` header. No new task is created.
+   - **Found, same hash:** return `201` with the task that request
+     created, in its current state, and an `Idempotent-Replayed: true`
+     header. No new task is created.
    - **Found, different hash:** return `422 IDEMPOTENCY_KEY_REUSED`.
    - **Not found:** run the use case, then insert the task and the
-     idempotency record (key, hash, status, response JSON, `CreatedAt`)
-     in the same `SaveChanges`.
+     idempotency record (key, hash, created task id, `CreatedAtUtc`) in
+     the same `SaveChanges`. The record stores a reference to the task
+     rather than a response snapshot, so the task's id (generated on
+     insert) needs no second save.
 4. If two identical requests race, the second save fails. It can fail
    on the record's primary key, or on the concurrency check, because
    both requests change the grant's `Version`. The server catches both,
-   looks up the key, and replays the stored response if the hash
+   looks up the key, and replays the winner's task if the hash
    matches. If no record exists, the failure is a real concurrency
    conflict and returns `409`.
-5. Only successful responses are stored. A rejected request can be
-   corrected and retried with the same key only if the body is
-   unchanged; otherwise the client generates a new key.
-6. **Retention is 24 hours.** Expired records are deleted at startup and
-   opportunistically when new records are written. In production this
+5. Only successful requests are recorded. A rejected request (400,
+   404, 409) leaves no record, so the same key can be retried.
+   Sending a missing key returns `400 IDEMPOTENCY_KEY_MISSING`; a key
+   over 100 characters returns `400 IDEMPOTENCY_KEY_INVALID`.
+6. **Retention is 24 hours.** Expired records are ignored by lookups and
+   deleted at startup and before each new record is written, which also
+   frees an expired key for reuse. In production this
    would move to a scheduled job.
 
 ## 8. Date and time handling
