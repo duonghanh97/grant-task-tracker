@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using GrantTracker.Api.Common.Database;
 using GrantTracker.Api.Common.Errors;
+using GrantTracker.Api.Common.Idempotency;
 using GrantTracker.Api.Common.Time;
 using GrantTracker.Api.Features.Grants;
 using GrantTracker.Api.Features.Tasks;
@@ -56,6 +57,7 @@ builder.Services.AddOpenApi();
 // Use cases.
 builder.Services.AddScoped<GrantService>();
 builder.Services.AddScoped<TaskService>();
+builder.Services.AddScoped<IdempotencyService>();
 
 var app = builder.Build();
 

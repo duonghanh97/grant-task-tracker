@@ -8,6 +8,8 @@ public static class ErrorCodes
 {
     // 400
     public const string ValidationFailed = "VALIDATION_FAILED";
+    public const string IdempotencyKeyMissing = "IDEMPOTENCY_KEY_MISSING";
+    public const string IdempotencyKeyInvalid = "IDEMPOTENCY_KEY_INVALID";
 
     // 404
     public const string NotFound = "NOT_FOUND";
@@ -18,6 +20,9 @@ public static class ErrorCodes
     public const string GrantClosed = "GRANT_CLOSED";
     public const string GrantHasPendingHighPriorityTasks = "GRANT_HAS_PENDING_HIGH_PRIORITY_TASKS";
     public const string ConcurrencyConflict = "CONCURRENCY_CONFLICT";
+
+    // 422
+    public const string IdempotencyKeyReused = "IDEMPOTENCY_KEY_REUSED";
 
     // 5xx
     public const string UnexpectedError = "UNEXPECTED_ERROR";

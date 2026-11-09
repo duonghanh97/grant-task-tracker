@@ -19,6 +19,9 @@ internal static class ApiProblem
         ErrorCodes.ConcurrencyConflict => "The grant was changed by someone else",
         ErrorCodes.GrantNotFound => "Grant not found",
         ErrorCodes.TaskNotFound => "Task not found",
+        ErrorCodes.IdempotencyKeyMissing => "Idempotency-Key header is required",
+        ErrorCodes.IdempotencyKeyInvalid => "Idempotency-Key header is invalid",
+        ErrorCodes.IdempotencyKeyReused => "Idempotency-Key was already used for a different request",
         _ => "The request could not be completed",
     };
 

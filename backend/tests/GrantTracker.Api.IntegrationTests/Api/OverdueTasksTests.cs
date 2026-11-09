@@ -15,7 +15,7 @@ public class OverdueTasksTests
     public async Task ListsTheSeededOverdueTasksMostOverdueFirst()
     {
         await using var factory = new ApiFactory { Seed = true };
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
 
         var overdue = await GetOverdueAsync(client);
 
@@ -40,7 +40,7 @@ public class OverdueTasksTests
         grant.CompleteTask(completed, Today.AddDays(-1));
         grant.AddTask("Due yesterday", Today.AddDays(-1), TaskPriority.Low, created);
         await factory.ArrangeAsync(db => db.Grants.Add(grant));
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
 
         var overdue = await GetOverdueAsync(client);
 
@@ -59,7 +59,7 @@ public class OverdueTasksTests
         await factory.ArrangeAsync(db => db.Grants.AddRange(second, first));
         var c = first.AddTask("C (due -5, added second)", Today.AddDays(-5), TaskPriority.Low, created);
         await factory.ArrangeAsync(db => db.Grants.Attach(first));
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
 
         var overdue = await GetOverdueAsync(client);
 
@@ -82,7 +82,7 @@ public class OverdueTasksTests
         grant.AddTask("Left pending", Today.AddDays(-2), TaskPriority.Medium, created);
         grant.Close();
         await factory.ArrangeAsync(db => db.Grants.Add(grant));
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
 
         var overdue = await GetOverdueAsync(client);
 
@@ -93,7 +93,7 @@ public class OverdueTasksTests
     public async Task ResultFollowsTheClock()
     {
         await using var factory = new ApiFactory { Seed = true };
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
 
         factory.Time.Advance(TimeSpan.FromDays(6));
         var overdue = await GetOverdueAsync(client);

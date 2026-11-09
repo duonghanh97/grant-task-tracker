@@ -1,6 +1,10 @@
 using GrantTracker.Api.Common.Errors;
+using GrantTracker.Api.Common.Idempotency;
 using GrantTracker.Api.Common.Validation;
+using GrantTracker.Data.Idempotency;
+using GrantTracker.Domain.Common;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 
 namespace GrantTracker.Api.Features.Tasks;
 
@@ -12,10 +16,11 @@ public static class TaskEndpoints
 
         api.MapPost("/grants/{grantId:int}/tasks", AddTask)
             .WithTags("Tasks")
-            .WithSummary("Add a task to an open grant.")
+            .WithSummary("Add a task to an open grant. Requires an Idempotency-Key header; retries with the same key return the original task.")
             .WithValidation<CreateTaskRequest>()
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status409Conflict);
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         api.MapPut("/tasks/{id:int}/complete", CompleteTask)
             .WithTags("Tasks")
@@ -34,12 +39,39 @@ public static class TaskEndpoints
         TypedResults.Ok(await service.ListOverdueAsync(cancellationToken));
 
     private static async Task<Results<Created<TaskDto>, ProblemHttpResult>> AddTask(
-        int grantId, CreateTaskRequest request, TaskService service, CancellationToken cancellationToken)
+        int grantId,
+        CreateTaskRequest request,
+        [FromHeader(Name = IdempotencyService.HeaderName)] string? idempotencyKey,
+        TaskService service,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
     {
-        var task = await service.AddAsync(grantId, request, cancellationToken);
-        return task is null
-            ? ApiProblem.GrantNotFound(grantId)
-            : TypedResults.Created((string?)null, task);
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            return ApiProblem.Create(StatusCodes.Status400BadRequest, ErrorCodes.IdempotencyKeyMissing,
+                "Send a unique Idempotency-Key header (for example a UUID) and reuse it when retrying.");
+        }
+
+        if (idempotencyKey.Length > IdempotencyRecord.KeyMaxLength)
+        {
+            return ApiProblem.Create(StatusCodes.Status400BadRequest, ErrorCodes.IdempotencyKeyInvalid,
+                $"The Idempotency-Key header must be at most {IdempotencyRecord.KeyMaxLength} characters.");
+        }
+
+        var result = await service.AddAsync(grantId, request, idempotencyKey, cancellationToken);
+        switch (result.Outcome)
+        {
+            case AddTaskOutcome.GrantNotFound:
+                return ApiProblem.GrantNotFound(grantId);
+            case AddTaskOutcome.KeyReused:
+                return ApiProblem.Create(StatusCodes.Status422UnprocessableEntity, ErrorCodes.IdempotencyKeyReused,
+                    "This Idempotency-Key was used for a different request. Generate a new key for new data.");
+            case AddTaskOutcome.Replayed:
+                httpContext.Response.Headers[IdempotencyService.ReplayedHeaderName] = "true";
+                return TypedResults.Created((string?)null, result.Task);
+            default:
+                return TypedResults.Created((string?)null, result.Task);
+        }
     }
 
     private static async Task<Results<Ok<TaskDto>, ProblemHttpResult>> CompleteTask(

@@ -31,6 +31,12 @@ internal sealed class ApiFactory : WebApplicationFactory<Program>
 
     public AppDbContext CreateDbContext() => _database.CreateContext();
 
+    /// <summary>
+    /// A client that sends a new Idempotency-Key with every POST that has none,
+    /// as the frontend does. Use <c>CreateClient()</c> to test the header itself.
+    /// </summary>
+    public HttpClient CreateApiClient() => CreateDefaultClient(new IdempotencyKeyHandler());
+
     /// <summary>Saves entities directly to the database, bypassing the API.</summary>
     public async Task ArrangeAsync(Action<AppDbContext> arrange)
     {
@@ -64,5 +70,18 @@ internal sealed class ApiFactory : WebApplicationFactory<Program>
     {
         await base.DisposeAsync();
         await _database.DisposeAsync();
+    }
+}
+
+internal sealed class IdempotencyKeyHandler : DelegatingHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        if (request.Method == HttpMethod.Post && !request.Headers.Contains("Idempotency-Key"))
+        {
+            request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+        }
+
+        return base.SendAsync(request, cancellationToken);
     }
 }

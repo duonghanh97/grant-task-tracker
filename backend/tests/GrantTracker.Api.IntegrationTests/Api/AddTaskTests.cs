@@ -25,7 +25,7 @@ public class AddTaskTests
         _factory = new ApiFactory();
         _grant = new Grant("GR-1", "Org", Today.AddDays(-30));
         await _factory.ArrangeAsync(db => db.Grants.Add(_grant));
-        _client = _factory.CreateClient();
+        _client = _factory.CreateApiClient();
     }
 
     [TearDown]

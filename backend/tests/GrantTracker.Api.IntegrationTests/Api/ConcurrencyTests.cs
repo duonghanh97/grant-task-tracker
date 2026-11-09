@@ -20,7 +20,7 @@ public class ConcurrencyTests
     {
         await using var factory = InterleavingInterceptor.CreateFactory(out var interceptor);
         var grant = await ArrangeGrantAsync(factory);
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
         HttpResponseMessage? competing = null;
         interceptor.BeforeNextSave(async () => competing = await client.PostAsJsonAsync(
             $"/api/grants/{grant.Id}/tasks", new { title = "Urgent", dueDate = Today.AddDays(1), priority = "High" }));
@@ -37,7 +37,7 @@ public class ConcurrencyTests
     {
         await using var factory = InterleavingInterceptor.CreateFactory(out var interceptor);
         var grant = await ArrangeGrantAsync(factory);
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
         HttpResponseMessage? competing = null;
         interceptor.BeforeNextSave(async () => competing = await client.PutAsync($"/api/grants/{grant.Id}/close", null));
 
@@ -59,7 +59,7 @@ public class ConcurrencyTests
         var grant = new Grant("GR-1", "Org", Today.AddDays(-10));
         var task = grant.AddTask("Verify bank details", Today.AddDays(1), TaskPriority.High, Today.AddDays(-10));
         await factory.ArrangeAsync(db => db.Grants.Add(grant));
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
         HttpResponseMessage? competing = null;
         interceptor.BeforeNextSave(async () => competing = await client.PutAsync($"/api/tasks/{task.Id}/complete", null));
 
@@ -79,7 +79,7 @@ public class ConcurrencyTests
     {
         await using var factory = new ApiFactory();
         var grant = await ArrangeGrantAsync(factory);
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
         var versions = new List<Guid> { await VersionAsync(factory, grant.Id) };
 
         var task = await (await client.PostAsJsonAsync($"/api/grants/{grant.Id}/tasks",
@@ -110,7 +110,7 @@ public class ConcurrencyTests
         await using var factory = new ApiFactory();
         var grants = Enumerable.Range(1, 10).Select(i => new Grant($"GR-{i}", "Org", Today.AddDays(-10))).ToList();
         await factory.ArrangeAsync(db => db.Grants.AddRange(grants));
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
 
         foreach (var grant in grants)
         {

@@ -15,7 +15,7 @@ public class GrantQueryTests
     public async Task ListsAllGrantsWithPendingTaskCounts()
     {
         await using var factory = new ApiFactory { Seed = true };
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
 
         var grants = await (await client.GetAsync("/api/grants"))
             .ReadAsync<GrantSummaryDto[]>(HttpStatusCode.OK);
@@ -37,7 +37,7 @@ public class GrantQueryTests
     public async Task FiltersByStatus(string status, string[] expected)
     {
         await using var factory = new ApiFactory { Seed = true };
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
 
         var grants = await (await client.GetAsync($"/api/grants?status={status}"))
             .ReadAsync<GrantSummaryDto[]>(HttpStatusCode.OK);
@@ -50,7 +50,7 @@ public class GrantQueryTests
     public async Task UnknownStatusIsRejected(string status)
     {
         await using var factory = new ApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
 
         var problem = await (await client.GetAsync($"/api/grants?status={status}"))
             .ReadProblemAsync(HttpStatusCode.BadRequest, ErrorCodes.ValidationFailed);
@@ -62,7 +62,7 @@ public class GrantQueryTests
     public async Task GetsAGrantWithItsTasksAndOverdueFlags()
     {
         await using var factory = new ApiFactory { Seed = true };
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
         var summaries = await (await client.GetAsync("/api/grants")).ReadAsync<GrantSummaryDto[]>(HttpStatusCode.OK);
         var riverside = summaries.Single(g => g.ReferenceNumber == "GR-100001");
 
@@ -90,7 +90,7 @@ public class GrantQueryTests
     public async Task UnknownGrantReturnsNotFound()
     {
         await using var factory = new ApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
 
         var problem = await (await client.GetAsync("/api/grants/999"))
             .ReadProblemAsync(HttpStatusCode.NotFound, ErrorCodes.GrantNotFound);
@@ -108,7 +108,7 @@ public class GrantQueryTests
         var grant = new Grant("GR-1", "Org", Today.AddDays(-30));
         grant.AddTask("Due 8 November", new DateOnly(2026, 11, 8), TaskPriority.Low, Today.AddDays(-30));
         await factory.ArrangeAsync(db => db.Grants.Add(grant));
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
 
         var detail = await (await client.GetAsync($"/api/grants/{grant.Id}"))
             .ReadAsync<GrantDetailDto>(HttpStatusCode.OK);

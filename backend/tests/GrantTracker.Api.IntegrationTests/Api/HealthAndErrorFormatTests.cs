@@ -11,7 +11,7 @@ public class HealthAndErrorFormatTests
     public async Task LiveAndReadyAreHealthy()
     {
         await using var factory = new ApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
 
         var live = await client.GetAsync("/health/live");
         var ready = await client.GetAsync("/health/ready");
@@ -27,7 +27,7 @@ public class HealthAndErrorFormatTests
     public async Task ReadyReportsUnavailableWhenTheSchemaIsMissing()
     {
         await using var factory = new ApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
         await using (var db = factory.CreateDbContext())
         {
             await db.Database.ExecuteSqlRawAsync("DROP TABLE IdempotencyRecords; DROP TABLE Tasks; DROP TABLE Grants;");
@@ -47,7 +47,7 @@ public class HealthAndErrorFormatTests
     public async Task UnknownRouteReturnsProblemDetails()
     {
         await using var factory = new ApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
 
         var response = await client.GetAsync("/api/does-not-exist");
 

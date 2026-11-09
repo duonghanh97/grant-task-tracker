@@ -26,7 +26,7 @@ public class CompleteTaskTests
         _grant = new Grant("GR-1", "Org", Today.AddDays(-30));
         _overdueTask = _grant.AddTask("Verify bank details", Today.AddDays(-3), TaskPriority.High, Today.AddDays(-30));
         await _factory.ArrangeAsync(db => db.Grants.Add(_grant));
-        _client = _factory.CreateClient();
+        _client = _factory.CreateApiClient();
     }
 
     [TearDown]

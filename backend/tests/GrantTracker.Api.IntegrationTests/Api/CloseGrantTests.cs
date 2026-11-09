@@ -20,7 +20,7 @@ public class CloseGrantTests
         grant.AddTask("Low task", Today.AddDays(1), TaskPriority.Low, Today);
         grant.AddTask("Medium task", Today.AddDays(1), TaskPriority.Medium, Today);
         await factory.ArrangeAsync(db => db.Grants.Add(grant));
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
 
         var closed = await (await CloseAsync(client, grant.Id)).ReadAsync<GrantDetailDto>(HttpStatusCode.OK);
         var closedList = await (await client.GetAsync("/api/grants?status=Closed")).ReadAsync<GrantSummaryDto[]>(HttpStatusCode.OK);
@@ -40,7 +40,7 @@ public class CloseGrantTests
         var grant = NewGrant();
         grant.AddTask("Verify bank details", Today.AddDays(1), TaskPriority.High, Today);
         await factory.ArrangeAsync(db => db.Grants.Add(grant));
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
 
         var problem = await (await CloseAsync(client, grant.Id))
             .ReadProblemAsync(HttpStatusCode.Conflict, ErrorCodes.GrantHasPendingHighPriorityTasks);
@@ -61,7 +61,7 @@ public class CloseGrantTests
         var grant = NewGrant();
         var task = grant.AddTask("Check eligibility", Today.AddDays(1), TaskPriority.High, Today);
         await factory.ArrangeAsync(db => db.Grants.Add(grant));
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
         (await client.PutAsync($"/api/tasks/{task.Id}/complete", null)).EnsureSuccessStatusCode();
 
         var closed = await (await CloseAsync(client, grant.Id)).ReadAsync<GrantDetailDto>(HttpStatusCode.OK);
@@ -75,7 +75,7 @@ public class CloseGrantTests
         await using var factory = new ApiFactory();
         var grant = NewGrant();
         await factory.ArrangeAsync(db => db.Grants.Add(grant));
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
         await (await CloseAsync(client, grant.Id)).ReadAsync<GrantDetailDto>(HttpStatusCode.OK);
 
         var repeated = await (await CloseAsync(client, grant.Id)).ReadAsync<GrantDetailDto>(HttpStatusCode.OK);
@@ -87,7 +87,7 @@ public class CloseGrantTests
     public async Task UnknownGrantReturnsNotFound()
     {
         await using var factory = new ApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateApiClient();
 
         await (await CloseAsync(client, 999)).ReadProblemAsync(HttpStatusCode.NotFound, ErrorCodes.GrantNotFound);
     }

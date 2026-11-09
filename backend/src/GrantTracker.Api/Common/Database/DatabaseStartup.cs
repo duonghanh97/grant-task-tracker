@@ -1,3 +1,4 @@
+using GrantTracker.Api.Common.Idempotency;
 using GrantTracker.Api.Common.Time;
 using GrantTracker.Data;
 using GrantTracker.Data.Seeding;
@@ -31,5 +32,7 @@ internal static class DatabaseStartup
             options.ResetOnStartup,
             options.Seed ? ctx => DatabaseSeeder.Seed(ctx, clock.Today) : null,
             app.Lifetime.ApplicationStopping);
+
+        await services.GetRequiredService<IdempotencyService>().PurgeExpiredAsync(app.Lifetime.ApplicationStopping);
     }
 }
