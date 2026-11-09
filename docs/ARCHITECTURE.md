@@ -62,6 +62,7 @@ controller ceremony.
 | Icons              | lucide-react                                  |
 | Tests              | Vitest + React Testing Library + jsdom        |
 | HTTP mocking       | MSW (Mock Service Worker) — *proposed addition* |
+| Lint               | oxlint (the Vite template's default; generated shadcn files ignored) |
 
 *Why React Router for one screen:* the selected grant lives in the URL
 (`/grants/:grantId`), so refresh, back/forward, and deep links work
@@ -90,7 +91,7 @@ without extra state code.
 │   ├── tsconfig.json                  # references app + node configs
 │   ├── tsconfig.app.json              # strict mode, `@/*` path alias
 │   ├── tsconfig.node.json             # for Vite/Vitest config files
-│   ├── eslint.config.js
+│   ├── .oxlintrc.json
 │   ├── components.json                # shadcn/ui config
 │   ├── public/
 │   └── src/
@@ -497,9 +498,10 @@ frontend/
     │   ├── utils.ts                # cn()
     │   └── dates.ts                # date-fns helpers
     └── test/
-        ├── setup.ts                # RTL + jest-dom + MSW server
-        ├── handlers.ts             # MSW handlers
-        └── renderWithProviders.tsx
+        ├── setup.ts                # jest-dom, MSW server, frozen Date, toast reset
+        ├── mockApi.ts              # in-memory fake API (seed data, BR-1/2/3/5)
+        ├── handlers.ts / server.ts # MSW wiring
+        └── render.tsx              # renderApp(route), renderWithProviders(ui)
 ```
 
 Tests sit next to the code they cover (for example,
@@ -529,6 +531,10 @@ type ApiError =
 ### 9.2 Retries
 
 - Queries retry twice, but only on network errors.
+- "Network error" means no response, a timeout, **or a 5xx without a
+  ProblemDetails body**. The API always answers errors with ProblemDetails,
+  so a bare 5xx comes from something in between. With the API stopped, the
+  Vite proxy was observed to return `502` with an empty body.
 - Complete Task retries on network errors, which is safe because the
   endpoint is idempotent.
 - Add Task retries on network errors with the same `Idempotency-Key`.

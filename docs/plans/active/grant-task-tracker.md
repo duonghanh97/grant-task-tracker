@@ -112,7 +112,7 @@ history.
   projects and two test projects referencing each other as in Architecture
   §4.1, and `dotnet-ef` as a local tool.
   *Done when:* `dotnet build backend` and `dotnet test backend` pass.
-- [ ] **0.4** Frontend skeleton: Vite React-TS (strict), Tailwind, shadcn/ui,
+- [x] **0.4** Frontend skeleton: Vite React-TS (strict), Tailwind, shadcn/ui,
   `@/` alias, `/api` proxy, Vitest + RTL + jsdom + MSW, ESLint.
   *Done when:* build, lint and a smoke test pass.
 
@@ -216,22 +216,22 @@ history.
 
 Can start after 0.4, against MSW mocks.
 
-- [ ] **6.1** `api/client.ts`, `api/types.ts`, `toApiError()`.
+- [x] **6.1** `api/client.ts`, `api/types.ts`, `toApiError()`.
   *Done when:* there is a unit test for each error kind: network, timeout,
   400, 404, 409 and 500.
-- [ ] **6.2** App shell: providers; a router where `/` opens the first grant
+- [x] **6.2** App shell: providers; a router where `/` opens the first grant
   and `/grants/:grantId` opens a given grant; a query client that retries
   network errors only and has a global `onError`; `ConnectionBanner`; toasts.
   *Done when:* a network failure shows the banner.
-- [ ] **6.3** Grant list with status tabs and counts (D5); `GrantHeader` with
+- [x] **6.3** Grant list with status tabs and counts (D5); `GrantHeader` with
   summary cards and a Close Grant button.
   *Done when:* a BR-5 409 shows the server's `detail` (D4).
-- [ ] **6.4** `TaskList` and `TaskRow`: priority and status badges, overdue
+- [x] **6.4** `TaskList` and `TaskRow`: priority and status badges, overdue
   highlighting from the server's `isOverdue`, and a Complete button on pending
   tasks only.
   *Done when:* an overdue row is highlighted; completed rows have no Complete
   button; completing shows a success toast.
-- [ ] **6.5** `AddTaskForm` dialog: React Hook Form and a Zod schema that
+- [x] **6.5** `AddTaskForm` dialog: React Hook Form and a Zod schema that
   mirrors BR-2 and BR-3; `useIdempotencyKey`; server field errors applied with
   `setError`; business errors in an alert; disabled on closed grants.
   *Done when:* client validation works; a server 400 lands on the right
@@ -239,24 +239,24 @@ Can start after 0.4, against MSW mocks.
 
 ### Phase 7 – Wrap-up
 
-- [ ] **7.1** Root `npm test` runs `dotnet test backend` and then the frontend
+- [x] **7.1** Root `npm test` runs `dotnet test backend` and then the frontend
   tests.
   *Done when:* it passes from a fresh clone.
-- [ ] **7.2** Manual end-to-end check against the seeded database: every
+- [ ] **7.2** *(Partly done 2026-11-09: API + Vite run; every endpoint, the BR-5 refusal, idempotent replay and the 502-when-API-down case checked through the proxy. Visual click-through in a browser still to do by the owner.)* Manual end-to-end check against the seeded database: every
   in-scope mockup flow, plus the banner when the server is stopped.
   *Done when:* each flow is seen working in a browser.
-- [ ] **7.3** `TESTING.md`, including a planted bug. For example, change `<`
+- [x] **7.3** `TESTING.md`, including a planted bug. For example, change `<`
   to `<=` in `IsOverdue`, or remove `Touch()` from `AddTask`, and record which
   test fails.
   *Done when:* the failing output is recorded and the bug is reverted.
-- [ ] **7.4** `README.md`: setup, run and test steps; answers to the seven
+- [x] **7.4** `README.md`: setup, run and test steps; answers to the seven
   open decisions in SPECS §13; the status-code table; how concurrency works
   and its limits; the UTC offset setting and its daylight-saving limit; how
   OP-1, OP-4, OP-5 and OP-6 would be finished before production. Keep the
   existing Harness install section.
-- [ ] **7.5** `AI_USAGE.md`. The owner must supply their own contributions and
+- [ ] **7.5** *(Drafted; owner sections marked "To be completed by the author".)* `AI_USAGE.md`. The owner must supply their own contributions and
   the AI-mistake example. Use the log at the end of this plan for candidates.
-- [ ] **7.6** Remove secrets and personal details. The mockup
+- [ ] **7.6** *(Text files scanned: no personal details. The mockup image still needs redacting by the owner; the original stays in git history unless history is rewritten.)* Remove secrets and personal details. The mockup
   `grant-tracker-add-grant.jpeg` shows a real name in the user menu and must
   be redacted or replaced. Then move this plan to `docs/plans/completed/`.
 
@@ -306,6 +306,12 @@ Decided during implementation (2026-11-08 to 2026-11-09):
 - **No CORS policy**: the Vite proxy is the only development path.
 - **`IDEMPOTENCY_KEY_INVALID`** (400) for keys over 100 characters, and
   generic `NOT_FOUND` / `UNEXPECTED_ERROR` codes so every error has a code.
+- **Frontend (2026-11-09):** oxlint (Vite template default) instead of
+  ESLint; a native `<select>` for priority (Radix Select is unreliable in
+  jsdom); `next-themes` dropped from the generated toaster (no dark mode);
+  a 5xx without ProblemDetails counts as "server unreachable", because the
+  Vite proxy returns a bare 502 when the API is down; one 680 kB bundle is
+  accepted for a single internal screen.
 - **Race tests** use a test-only `SaveChangesInterceptor` registered with
   EF Core's `ConfigureDbContext`, so no production hook is needed.
 
@@ -327,6 +333,12 @@ happen.
 - 2026-11-08, AI mistake: the first draft of the BR-1 test added an
   `internal CloseForTest()` method to production code because `Close()`
   did not exist yet. Replaced by moving the test to the BR-5 commit.
+- 2026-11-09, AI-written test passed for the wrong reason: sonner's global
+  toast store leaked a "Task completed" toast into the next test, so the
+  network-retry test passed with no retry. Fixed by clearing toasts after
+  each test; proven by removing the retry and watching the test fail.
+- 2026-11-09, a selector test held a DOM element from before a redirect
+  re-rendered the page; it now waits for the redirected page.
 - 2026-11-08, design catch: completing tasks by id inside the domain
   would not work for unsaved tasks (all id 0); changed to pass the task.
 
