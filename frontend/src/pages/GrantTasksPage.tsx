@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useGrant, useGrants } from '@/features/grants/api'
 import { GrantHeader } from '@/features/grants/components/GrantHeader'
 import { GrantSelector } from '@/features/grants/components/GrantSelector'
+import { AddTaskForm } from '@/features/tasks/components/AddTaskForm'
 import { TaskList } from '@/features/tasks/components/TaskList'
 
 /** The single screen: pick a grant, see and work on its tasks. */
@@ -52,7 +53,10 @@ function GrantPanel({ grantId }: { grantId: number }) {
     <div className="space-y-6">
       <GrantHeader grant={grant.data} />
       <div className="space-y-3">
-        <h3 className="text-base font-semibold">Tasks</h3>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-base font-semibold">Tasks</h3>
+          <AddTaskForm grant={grant.data} />
+        </div>
         <TaskList tasks={grant.data.tasks} />
       </div>
     </div>
