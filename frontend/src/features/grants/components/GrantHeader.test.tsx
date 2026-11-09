@@ -7,7 +7,8 @@ test('shows grant details and task summary', async () => {
 
   expect(await screen.findByRole('heading', { name: 'Riverside Community Garden Inc.' })).toBeInTheDocument()
   expect(screen.getByText('GR-100001 • Application date: 09 Sep 2026')).toBeInTheDocument()
-  const summary = (label: string) => within(screen.getByText(label).parentElement!).getByRole('definition').textContent
+  const summary = (label: string) =>
+    screen.getAllByRole('term').find((term) => term.textContent === label)!.previousElementSibling!.textContent
   expect(summary('Total Tasks')).toBe('3')
   expect(summary('Pending')).toBe('2')
   expect(summary('Overdue')).toBe('1')

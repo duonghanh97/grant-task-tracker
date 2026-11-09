@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
+import { toast } from 'sonner'
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
 import { received, resetMockApi, TODAY } from './mockApi'
 import { server } from './server'
@@ -18,6 +19,8 @@ beforeEach(() => {
 afterEach(() => {
   server.resetHandlers()
   cleanup()
+  // sonner keeps toasts in a module-level store; clear it so toasts never leak between tests.
+  toast.dismiss()
   vi.useRealTimers()
 })
 
