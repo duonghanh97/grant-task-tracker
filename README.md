@@ -78,7 +78,7 @@ Other decisions:
   grant that still has pending Low or Medium tasks.
 
 The full decision log is in
-[`docs/plans/active/grant-task-tracker.md`](docs/plans/active/grant-task-tracker.md).
+[`docs/plans/completed/grant-task-tracker.md`](docs/plans/completed/grant-task-tracker.md).
 
 ## API
 

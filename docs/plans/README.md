@@ -30,5 +30,9 @@ decision into `docs/decisions/`; keep task-local choices in the plan.
 
 ## Active Plans
 
-- [grant-task-tracker.md](active/grant-task-tracker.md): build the Grant Task
-  Tracker described in `SPECS.md`.
+None.
+
+## Completed Plans
+
+- [grant-task-tracker.md](completed/grant-task-tracker.md): build the Grant
+  Task Tracker described in `SPECS.md`.

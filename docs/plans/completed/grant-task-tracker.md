@@ -4,7 +4,7 @@ Date: 2026-11-08
 
 ## Status
 
-Active
+Completed 2026-11-10
 
 ## Outcome
 
@@ -242,7 +242,7 @@ Can start after 0.4, against MSW mocks.
 - [x] **7.1** Root `npm test` runs `dotnet test backend` and then the frontend
   tests.
   *Done when:* it passes from a fresh clone.
-- [ ] **7.2** *(Partly done 2026-11-09: API + Vite run; every endpoint, the BR-5 refusal, idempotent replay and the 502-when-API-down case checked through the proxy. Visual click-through in a browser still to do by the owner.)* Manual end-to-end check against the seeded database: every
+- [x] **7.2** *(2026-11-09: API + Vite run; every endpoint, the BR-5 refusal, idempotent replay and the 502-when-API-down case checked through the proxy. 2026-11-10: the owner checked the flows in a browser.)* Manual end-to-end check against the seeded database: every
   in-scope mockup flow, plus the banner when the server is stopped.
   *Done when:* each flow is seen working in a browser.
 - [x] **7.3** `TESTING.md`, including a planted bug. For example, change `<`
@@ -254,7 +254,7 @@ Can start after 0.4, against MSW mocks.
   and its limits; the UTC offset setting and its daylight-saving limit; how
   OP-1, OP-4, OP-5 and OP-6 would be finished before production. Keep the
   existing Harness install section.
-- [ ] **7.5** *(Drafted; owner sections marked "To be completed by the author".)* `AI_USAGE.md`. The owner must supply their own contributions and
+- [x] **7.5** *(Owner sections completed by the owner, 2026-11-09.)* `AI_USAGE.md`. The owner must supply their own contributions and
   the AI-mistake example. Use the log at the end of this plan for candidates.
 - [x] **7.6** *(Accepted by the owner 2026-11-10. Text files scanned: no
   personal details. The owner accepts the name shown in the mockup. Moving
@@ -358,4 +358,26 @@ happen.
 
 ## Result
 
-Pending.
+Completed 2026-11-10. The outcome above exists and every Progress task is
+done.
+
+Validation on a fresh clone of `feat/grant-task-tracker` (commit `c8e5ab8`),
+.NET SDK 10.0.102 and Node.js 26.13.0:
+
+- `npm run setup && npm test`: passed. Domain tests 36/36, API integration
+  tests 100/100, frontend tests 45/45 in 7 files.
+- `dotnet build backend`: 0 warnings, 0 errors (warnings are errors).
+- `npm --prefix frontend run lint` (oxlint): passed.
+- `npm --prefix frontend run build`: passed, with Vite's warning about one
+  chunk over 500 kB (accepted; see Decisions).
+- Manual browser check of the in-scope flows by the owner (7.2).
+
+Known limits, documented in `README.md`:
+
+- SQLite allows one writer at a time; enough for about 100 officers.
+- The fixed UTC offset ignores daylight saving.
+- OP-1 and OP-6 are documented only; OP-4 and OP-5 are partly implemented.
+- No authentication; it is out of scope.
+
+Follow-up before production is listed in `README.md` under
+"Before production".

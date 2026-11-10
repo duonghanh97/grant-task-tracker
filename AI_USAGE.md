@@ -23,7 +23,7 @@ I committed the instruction files so the setup can be reviewed:
   - claim completion only with executable evidence.
 - [`docs/WORKFLOW.md`](docs/WORKFLOW.md) and `docs/plans/` hold a durable
   execution plan for multi-session work. The plan is
-  [`docs/plans/active/grant-task-tracker.md`](docs/plans/active/grant-task-tracker.md);
+  [`docs/plans/completed/grant-task-tracker.md`](docs/plans/completed/grant-task-tracker.md);
   it records progress, decisions and an AI usage log.
 - `.claude/settings.json` holds the permission rules and hooks:
   - block likely secrets in files the agent reads or writes;
@@ -81,7 +81,7 @@ I committed the instruction files so the setup can be reviewed:
    scope. During planning each extra was listed as an open decision (D1–D3)
    and left out, so only what [`SPECS.md`](SPECS.md) requires was built (see
    the plan's
-   [Out of scope](docs/plans/active/grant-task-tracker.md) list).
+   [Out of scope](docs/plans/completed/grant-task-tracker.md) list).
 2. **Work lost while verifying tests.** To prove the concurrency tests catch
    regressions, Claude Code edited `TaskService.cs`, ran the tests, then
    restored the file with `git checkout`. The file also held uncommitted work
