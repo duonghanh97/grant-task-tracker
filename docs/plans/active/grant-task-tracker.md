@@ -256,9 +256,12 @@ Can start after 0.4, against MSW mocks.
   existing Harness install section.
 - [ ] **7.5** *(Drafted; owner sections marked "To be completed by the author".)* `AI_USAGE.md`. The owner must supply their own contributions and
   the AI-mistake example. Use the log at the end of this plan for candidates.
-- [ ] **7.6** *(Text files scanned: no personal details. The mockup image still needs redacting by the owner; the original stays in git history unless history is rewritten.)* Remove secrets and personal details. The mockup
-  `grant-tracker-add-grant.jpeg` shows a real name in the user menu and must
-  be redacted or replaced. Then move this plan to `docs/plans/completed/`.
+- [x] **7.6** *(Accepted by the owner 2026-11-10. Text files scanned: no
+  personal details. The owner accepts the name shown in the mockup. Moving
+  this plan to `docs/plans/completed/` waits for the Result section.)* Remove secrets and
+  personal details. The mockup `grant-tracker-add-grant.jpeg` shows a real
+  name in the user menu and must be redacted or replaced. Then move this plan
+  to `docs/plans/completed/`.
 
 ## Decisions
 
