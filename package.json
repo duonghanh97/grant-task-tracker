@@ -1,0 +1,12 @@
+{
+  "name": "grant-task-tracker",
+  "private": true,
+  "scripts": {
+    "setup": "dotnet tool restore && dotnet restore backend && npm --prefix frontend ci",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "dotnet test backend",
+    "test:frontend": "npm --prefix frontend test -- --run",
+    "dev:backend": "dotnet run --project backend/src/GrantTracker.Api --launch-profile http",
+    "dev:frontend": "npm --prefix frontend run dev"
+  }
+}
